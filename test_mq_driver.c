@@ -17,25 +17,36 @@ int main(){
     if(write(fd, "1 nomeQualquer", strlen("1 nomeQualquer"))){
         printf("Adicionado\n");
     }
+    else return 0;
 
     fgets(buff, SIZE_BUFF, stdin);
 
     // if(write(fd, "4 \0", strlen("4 \0")))
     //     printf("Removido\n");
 
-    if(write(fd, "2 nomeQualquer Teste de msg 1\0", strlen("2 nomeQualquer Teste de msg 1\0"))){
+    if(write(fd, "3 Teste de msg 1\0", strlen("3 Teste de msg 1\0"))){
         printf("Teste mandado\n");
     }
 
-    if(write(fd, "2 nomeQualquer Teste de msg 2\0", strlen("2 nomeQualquer Teste de msg 2\0"))){
-        printf("Teste mandado\n");
-    }
-
-    if(write(fd, "2 nomeQualquer Teste de msg 3\0", strlen("2 nomeQualquer Teste de msg 3\0"))){
+    if(write(fd, "3 Teste de msg 2\0", strlen("3 Teste de msg 2\0"))){
         printf("Teste mandado\n");
     }
 
     fgets(buff, SIZE_BUFF, stdin);
+
+    if(read(fd, "", strlen(""))){
+        
+    }
+
+    if(read(fd, "", strlen(""))){
+        
+    }
+
+    if(read(fd, "", strlen(""))){
+        
+    }
+
+    write(fd, "4 \0", strlen("4 \0"));
 
     close(fd);
 }

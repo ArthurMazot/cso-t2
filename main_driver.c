@@ -19,8 +19,8 @@ static struct device *charDevice = NULL;
 
 struct list_head list;
 int count = 0; //qnt de processos registrados
-static int qntPro = 1;
-static int qntMsg = 4;
+static int qntPro = 2;
+static int qntMsg = 2;
 static int tamMsg = 16;
 
 // module_param(qntPro, int, 0644);
@@ -100,8 +100,9 @@ char estaRegistrado(void){
 
 char registraProcesso(char *nome){
     struct nodo *n = NULL;
-    if(count > qntPro) //se a lista está cheia
-        return 0;
+    if(count >= qntPro){ //se a lista está cheia
+        printk(KERN_ALERT "A lista está cheia\n");
+        return 0;}
 
     if(!nome && !nome[0]) //se não recebeu um nome e o nome é vazio
         return 0;
@@ -125,14 +126,14 @@ int addMsg(struct list_head *mesagens, char *buff){
 	struct mensagem *m = kmalloc((sizeof(struct mensagem)), GFP_KERNEL);
     m->string = kmalloc((tamMsg*sizeof(char)), GFP_KERNEL);
 	strcpy(m->string, buff);
-	list_add(&(m->link), mesagens);
+	list_add_tail(&(m->link), mesagens);
 	return 0;}
 
 //========================================//
 
-int rmMsg(struct list_head *mesagens){
-	struct mensagem *m = NULL;
-	m = list_first_entry(mesagens, struct mensagem, link);
+int rmMsg(struct list_head *mesagens, char flag){
+	struct mensagem *m = list_first_entry(mesagens, struct mensagem, link);
+    if(flag) printk(KERN_ALERT "%s\n", m->string);
 	list_del(&m->link);
     kfree(m->string);
 	kfree(m);
@@ -149,12 +150,11 @@ char mandaMsg(char *buff){
     buff = strtok(buff);
     list_for_each_entry(n, &list, link){
         if(strcmp(n->nome, nome) == 0){
-            if(n->tam >= tamMsg){
-                rmMsg(&n->mensagens);
+            if(n->tam >= qntMsg){
+                rmMsg(&n->mensagens, 0);
                 n->tam--;}
             addMsg(&n->mensagens, buff);
             n->tam++;
-            list_show();
             return 1;}}
     return 0;}
 
@@ -162,7 +162,6 @@ char mandaMsg(char *buff){
 
 char msgAll(char *buff){
     struct nodo *n = NULL;
-    struct mensagem *m = NULL;
 
     if(!estaRegistrado())
         return 0;
@@ -175,31 +174,23 @@ char msgAll(char *buff){
     
     list_for_each_entry(n, &list, link){
         if(n->pid != task_pid_nr(current)){
-            if(n->tam >= tamMsg){
-                rmMsg(&n->mensagens);
+            if(n->tam >= qntMsg){
+                rmMsg(&n->mensagens, 0);
                 n->tam--;}
-            n->tam++;
-            m = kmalloc((sizeof(struct mensagem)), GFP_KERNEL);
-            m->string = kmalloc(tamMsg*sizeof(char), GFP_KERNEL);
-            strcpy(m->string, buff);
-            list_add(&(m->link), &(n->mensagens));}}
+            addMsg(&n->mensagens, buff);
+            n->tam++;}}
     return 1;}
 
 //========================================//
 
 char unReg(void){
     struct nodo *n = NULL;
-    struct mensagem *m = NULL;
     if(count <= 0)
         return 0;
 
     list_for_each_entry(n, &list, link){
         if(n->pid == task_pid_nr(current)){
-            if(n->tam > 0){
-                list_for_each_entry(m, &(n->mensagens), link){
-                    kfree(m->string);
-                    list_del(&(m->link));
-                    kfree(m);}}
+            while(n->tam--) rmMsg(&n->mensagens, 0);
             kfree(n->nome);
             list_del(&(n->link));
             kfree(n);
@@ -211,18 +202,15 @@ char unReg(void){
 
 void clearList(void){
     struct nodo *n = NULL;
-    struct mensagem *m = NULL;
     if(list_empty(&list))
         return;
 
     list_for_each_entry(n, &list, link){
-        if(n->tam > 0)
-            list_for_each_entry(m, &(n->mensagens), link){
-                list_del(&(m->link));
-                kfree(m);}
+        while(n->tam--) rmMsg(&n->mensagens, 0);
         list_del(&(n->link));
         kfree(n->nome);
-        kfree(n);}}
+        kfree(n);
+        count--;}}
 
 //========================================//
 
@@ -269,16 +257,12 @@ static int dev_open(struct inode *inodep, struct file *filep){
 
 static ssize_t dev_read(struct file *filep, char *buff, size_t size, loff_t *offset){
     struct nodo *n = NULL;
-    struct mensagem *m = NULL;
     if(list_empty(&list))
         return 0;
 
     list_for_each_entry(n, &list, link){
         if(n->pid == task_pid_nr(current) && n->tam > 0){
-            list_for_each_entry(m, &(n->mensagens), link);
-            printk(KERN_ALERT "%s\n", m->string);
-            list_del(&(m->link));
-            kfree(m);
+            rmMsg(&n->mensagens, 1);
             n->tam--;
             return 1;}}
     return 0;}
