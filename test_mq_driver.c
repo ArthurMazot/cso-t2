@@ -14,20 +14,28 @@ int main(){
     if(fd < 0)
         return 1;
 
-    if(write(fd, "1 nomeQualquer\0", strlen("1 nomeQualquer\0"))){
+    if(write(fd, "1 nomeQualquer", strlen("1 nomeQualquer"))){
         printf("Adicionado\n");
     }
 
     fgets(buff, SIZE_BUFF, stdin);
 
-    if(write(fd, "3 Alo!!!\0", strlen("3 Alo!!!\0"))){
-        printf("Mandando Alo!!!\n");
+    // if(write(fd, "4 \0", strlen("4 \0")))
+    //     printf("Removido\n");
+
+    if(write(fd, "2 nomeQualquer Teste de msg 1\0", strlen("2 nomeQualquer Teste de msg 1\0"))){
+        printf("Teste mandado\n");
+    }
+
+    if(write(fd, "2 nomeQualquer Teste de msg 2\0", strlen("2 nomeQualquer Teste de msg 2\0"))){
+        printf("Teste mandado\n");
+    }
+
+    if(write(fd, "2 nomeQualquer Teste de msg 3\0", strlen("2 nomeQualquer Teste de msg 3\0"))){
+        printf("Teste mandado\n");
     }
 
     fgets(buff, SIZE_BUFF, stdin);
 
-    if(write(fd, "4 \0", strlen("4 \0"))){
-        printf("Removido\n");
-    }
     close(fd);
 }

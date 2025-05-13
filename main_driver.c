@@ -19,11 +19,11 @@ static struct device *charDevice = NULL;
 
 struct list_head list;
 int count = 0; //qnt de processos registrados
-static int qntPro = 3;
-static int qntMsg = 2;
-static int tamMsg = 10;
+static int qntPro = 1;
+static int qntMsg = 4;
+static int tamMsg = 16;
 
-// module_param(qntPro, int, 0);
+// module_param(qntPro, int, 0644);
 // module_param(qntMsg, int, 0644);
 // module_param(tamMsg, int, 0644);
 
@@ -58,6 +58,15 @@ static struct file_operations fops =
 
 //========================================//
 
+void msg_show(struct list_head *mesagens){
+    struct mensagem *m = NULL;
+    list_for_each_entry(m, mesagens, link){
+        printk(KERN_INFO "Mensagem: %s", m->string);
+    }
+}
+
+//========================================//
+
 void list_show(void){
 	struct nodo *n = NULL;
     if(count <= 0){
@@ -65,7 +74,10 @@ void list_show(void){
         return;}
 
 	list_for_each_entry(n, &list, link){
-		printk(KERN_INFO "PID: %d, Nome: %s\n", n->pid, n->nome);}}
+		printk(KERN_INFO "PID: %d, Nome: %s\n", n->pid, n->nome);
+        printk(KERN_INFO "Tam: %d", n->tam);
+        msg_show(&n->mensagens);
+        printk(KERN_INFO "\n\n");}}
 
 //========================================//
 
@@ -103,16 +115,33 @@ char registraProcesso(char *nome){
     n->nome = kmalloc(sizeof(char)*strlen(nome), GFP_KERNEL);
     n->tam = 0;
     strcpy(n->nome, nome);
-    INIT_LIST_HEAD(&(n->mensagens));
+    INIT_LIST_HEAD(&n->mensagens);
     list_add(&(n->link), &list);
-    list_show();
     return 1;}
+
+//========================================//
+
+int addMsg(struct list_head *mesagens, char *buff){
+	struct mensagem *m = kmalloc((sizeof(struct mensagem)), GFP_KERNEL);
+    m->string = kmalloc((tamMsg*sizeof(char)), GFP_KERNEL);
+	strcpy(m->string, buff);
+	list_add(&(m->link), mesagens);
+	return 0;}
+
+//========================================//
+
+int rmMsg(struct list_head *mesagens){
+	struct mensagem *m = NULL;
+	m = list_first_entry(mesagens, struct mensagem, link);
+	list_del(&m->link);
+    kfree(m->string);
+	kfree(m);
+	return 0;}
 
 //========================================//
 
 char mandaMsg(char *buff){
     struct nodo *n = NULL;
-    struct mensagem *m = NULL;
     char *nome = buff;
     if(!estaRegistrado())
         return 0;
@@ -121,17 +150,11 @@ char mandaMsg(char *buff){
     list_for_each_entry(n, &list, link){
         if(strcmp(n->nome, nome) == 0){
             if(n->tam >= tamMsg){
-                list_for_each_entry(m, &(n->mensagens), link);
-                kfree(m->string);
-                list_del(&(m->link));
-                kfree(m);
+                rmMsg(&n->mensagens);
                 n->tam--;}
-
+            addMsg(&n->mensagens, buff);
             n->tam++;
-            m = kmalloc((sizeof(struct mensagem)), GFP_KERNEL);
-            m->string = kmalloc(tamMsg*sizeof(char), GFP_KERNEL);
-            strcpy(m->string, buff);
-            list_add(&(m->link), &(n->mensagens));
+            list_show();
             return 1;}}
     return 0;}
 
@@ -153,10 +176,7 @@ char msgAll(char *buff){
     list_for_each_entry(n, &list, link){
         if(n->pid != task_pid_nr(current)){
             if(n->tam >= tamMsg){
-                list_for_each_entry(m, &(n->mensagens), link);
-                kfree(m->string);
-                list_del(&(m->link));
-                kfree(m);
+                rmMsg(&n->mensagens);
                 n->tam--;}
             n->tam++;
             m = kmalloc((sizeof(struct mensagem)), GFP_KERNEL);
@@ -184,7 +204,6 @@ char unReg(void){
             list_del(&(n->link));
             kfree(n);
             count--;
-            list_show();
             return 1;}}
     return 0;}
 
