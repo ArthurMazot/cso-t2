@@ -14,15 +14,12 @@ int main(){
     if(fd < 0)
         return 1;
 
-    if(write(fd, "1 nomeQualquer", strlen("1 nomeQualquer"))){
+    if(write(fd, "1 nomeQualquer\0", strlen("1 nomeQualquer\0"))){
         printf("Adicionado\n");
     }
     else return 0;
 
     fgets(buff, SIZE_BUFF, stdin);
-
-    // if(write(fd, "4 \0", strlen("4 \0")))
-    //     printf("Removido\n");
 
     if(write(fd, "3 Teste de msg 1\0", strlen("3 Teste de msg 1\0"))){
         printf("Teste mandado\n");
@@ -32,21 +29,23 @@ int main(){
         printf("Teste mandado\n");
     }
 
+    if(write(fd, "3 Teste de msg 3\0", strlen("3 Teste de msg 3\0"))){
+        printf("Teste mandado\n");
+    }
+
+    if(write(fd, "3 Teste de msg 4\0", strlen("3 Teste de msg 4\0"))){
+        printf("Teste mandado\n");
+    }
+
     fgets(buff, SIZE_BUFF, stdin);
 
-    if(read(fd, "", strlen(""))){
-        
-    }
+    if(read(fd, "", strlen("")));
+    if(read(fd, "", strlen("")));
+    if(read(fd, "", strlen("")));
+    if(read(fd, "", strlen("")));
 
-    if(read(fd, "", strlen(""))){
-        
-    }
 
-    if(read(fd, "", strlen(""))){
-        
-    }
-
-    write(fd, "4 \0", strlen("4 \0"));
+    write(fd, "4 nomeQualquer\0", strlen("4 nomeQualquer\0"));
 
     close(fd);
 }

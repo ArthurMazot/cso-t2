@@ -27,6 +27,7 @@ static int tamMsg = 16;
 // module_param(qntMsg, int, 0644);
 // module_param(tamMsg, int, 0644);
 
+
 static int dev_open(struct inode *, struct file *);
 static int dev_release(struct inode *, struct file *);
 static ssize_t dev_read(struct file *, char *, size_t, loff_t *);
@@ -89,11 +90,15 @@ char *strtok(char *buff){
 
 //========================================//
 
-char estaRegistrado(void){
+char estaRegistrado(char *nome){
     struct nodo *n = NULL;
-    list_for_each_entry(n, &list, link)
-        if(n->pid == task_pid_nr(current))
-            return 1;
+    list_for_each_entry(n, &list, link){
+        if(strcmp(n->nome, nome) == 0){
+            printk(KERN_ALERT "Nome já utilizado\n");
+            return 1;}
+        if(n->pid == task_pid_nr(current)){
+            printk(KERN_ALERT "Este processo ja está registrado\n");
+            return 1;}}
     return 0;}
 
 //========================================//
@@ -104,10 +109,11 @@ char registraProcesso(char *nome){
         printk(KERN_ALERT "A lista está cheia\n");
         return 0;}
 
-    if(!nome && !nome[0]) //se não recebeu um nome e o nome é vazio
-        return 0;
+    if(!nome && !nome[0]){//se não recebeu um nome e o nome é vazio
+        printk(KERN_ALERT "Nome inválido\n");
+        return 0;}
 
-    if(estaRegistrado()) //ja está registrado
+    if(estaRegistrado(nome)) //ja está registrado
         return 0;
 
     count++;
@@ -124,7 +130,7 @@ char registraProcesso(char *nome){
 
 int addMsg(struct list_head *mesagens, char *buff){
 	struct mensagem *m = kmalloc((sizeof(struct mensagem)), GFP_KERNEL);
-    m->string = kmalloc((tamMsg*sizeof(char)), GFP_KERNEL);
+    m->string = kmalloc((strlen(buff)*sizeof(char)), GFP_KERNEL);
 	strcpy(m->string, buff);
 	list_add_tail(&(m->link), mesagens);
 	return 0;}
@@ -133,7 +139,7 @@ int addMsg(struct list_head *mesagens, char *buff){
 
 int rmMsg(struct list_head *mesagens, char flag){
 	struct mensagem *m = list_first_entry(mesagens, struct mensagem, link);
-    if(flag) printk(KERN_ALERT "%s\n", m->string);
+    if(flag) printk(KERN_INFO "%s\n", m->string);
 	list_del(&m->link);
     kfree(m->string);
 	kfree(m);
@@ -144,13 +150,19 @@ int rmMsg(struct list_head *mesagens, char flag){
 char mandaMsg(char *buff){
     struct nodo *n = NULL;
     char *nome = buff;
-    if(!estaRegistrado())
-        return 0;
-
     buff = strtok(buff);
+    if(!estaRegistrado(nome)){
+        printk(KERN_ALERT "Este processo não está registrado\n");
+        return 0;}
+
+    if(strlen(buff) >= tamMsg){
+        printk(KERN_ALERT "Mensagem muito grande\n");
+        return 0;}
+
     list_for_each_entry(n, &list, link){
         if(strcmp(n->nome, nome) == 0){
             if(n->tam >= qntMsg){
+                printk(KERN_INFO "Lista de mensagens cheia, a mais antiga será removida\n");
                 rmMsg(&n->mensagens, 0);
                 n->tam--;}
             addMsg(&n->mensagens, buff);
@@ -162,40 +174,43 @@ char mandaMsg(char *buff){
 
 char msgAll(char *buff){
     struct nodo *n = NULL;
+    if(count <= 0){
+        printk(KERN_ALERT "A Lista de processos está vazia\n");
+        return 0;}
 
-    if(!estaRegistrado())
-        return 0;
-
-    if(strlen(buff) >= tamMsg)
-        return 0;
-
-    if(count <= 0) //se a lista estiver vazia
-        return 0;
+    if(strlen(buff) >= tamMsg){
+        printk(KERN_ALERT "Mensagem muito grande\n");
+        return 0;}
     
     list_for_each_entry(n, &list, link){
-        if(n->pid != task_pid_nr(current)){
-            if(n->tam >= qntMsg){
-                rmMsg(&n->mensagens, 0);
-                n->tam--;}
-            addMsg(&n->mensagens, buff);
-            n->tam++;}}
+        if(n->tam >= qntMsg){
+            printk(KERN_INFO "Lista de mensagens cheia, a mais antiga será removida\n");
+            rmMsg(&n->mensagens, 0);
+            n->tam--;}
+        addMsg(&n->mensagens, buff);
+        n->tam++;}
     return 1;}
 
 //========================================//
 
-char unReg(void){
+char unReg(char *nome){
     struct nodo *n = NULL;
-    if(count <= 0)
-        return 0;
+    if(count <= 0){
+        printk(KERN_ALERT "Lista de processos vazia\n");
+        return 0;}
 
     list_for_each_entry(n, &list, link){
-        if(n->pid == task_pid_nr(current)){
-            while(n->tam--) rmMsg(&n->mensagens, 0);
-            kfree(n->nome);
-            list_del(&(n->link));
-            kfree(n);
-            count--;
-            return 1;}}
+        if(strcmp(n->nome, nome) == 0){
+            if(n->pid == task_pid_nr(current)){
+                while(n->tam--) rmMsg(&n->mensagens, 0);
+                kfree(n->nome);
+                list_del(&(n->link));
+                kfree(n);
+                count--;
+                return 1;}
+            printk(KERN_ALERT "Este processo não registrou %s, processo não removido\n", nome);
+            return 0;}}
+    printk(KERN_ALERT "O processo %s, não está registrado\n", nome);
     return 0;}
 
 //========================================//
@@ -233,8 +248,8 @@ static int mq_init(void){
 		return PTR_ERR(charDevice);}
 
     INIT_LIST_HEAD(&list);
-    printk(KERN_ALERT "Modulo carregado\n");
-    printk(KERN_ALERT "%d, %d, %d\n", qntPro, qntMsg, tamMsg);
+    printk(KERN_INFO "Modulo carregado\n");
+    printk(KERN_INFO "%d, %d, %d\n", qntPro, qntMsg, tamMsg);
     return 0;}
 
 
@@ -246,7 +261,7 @@ static void mq_exit(void){
 	class_unregister(charClass);
 	class_destroy(charClass);
 	unregister_chrdev(majorNumber, DEVICE_NAME);
-    printk(KERN_ALERT "Modulo descarregado\n");}
+    printk(KERN_INFO "Modulo descarregado\n");}
 
 //========================================//
 
@@ -257,14 +272,20 @@ static int dev_open(struct inode *inodep, struct file *filep){
 
 static ssize_t dev_read(struct file *filep, char *buff, size_t size, loff_t *offset){
     struct nodo *n = NULL;
-    if(list_empty(&list))
-        return 0;
+    if(count <= 0){
+        printk(KERN_ALERT "Lista de processos vazia\n");
+        return 0;}
 
     list_for_each_entry(n, &list, link){
-        if(n->pid == task_pid_nr(current) && n->tam > 0){
+        if(n->pid == task_pid_nr(current)){
+            if(n->tam <= 0){
+                printk(KERN_ALERT "Lista de mensagens vazia\n");
+                return 0;}
             rmMsg(&n->mensagens, 1);
             n->tam--;
             return 1;}}
+
+    printk(KERN_ALERT "O processo não está registrado\n");
     return 0;}
 
 //========================================//
@@ -283,7 +304,7 @@ static ssize_t dev_write(struct file *filep, const char *buff, size_t size, loff
         ret = msgAll(aux);
 
     if(buff[0] == '4') //tira um processo da lista
-        ret = unReg();
+        ret = unReg(aux);
 
     kfree(aux);
     return ret;}
