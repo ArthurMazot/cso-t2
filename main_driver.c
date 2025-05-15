@@ -230,8 +230,9 @@ void clearList(void){
 //========================================//
 
 static int mq_init(void){
-    // if(qntPro == -1 || qntMsg == -1 || tamMsg == -1)
-    //     return 1;
+    // if(qntPro <= 0 || qntMsg <= 0 || tamMsg <= 0){
+    //     printk(KERN_ALERT "Parametros inválidos\n");    
+    //     return 1;}
 
     majorNumber = register_chrdev(0, DEVICE_NAME, &fops);
     if(majorNumber < 0) return majorNumber;
