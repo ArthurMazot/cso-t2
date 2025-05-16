@@ -75,7 +75,8 @@ char estaRegistrado(char *nome, char flag){
             return 1;}
         if(n->pid == task_pid_nr(current)){
             if(flag) printk(KERN_ALERT "[REG] Este processo já está registrado.\n"); //printk(KERN_ALERT "Este processo ja está registrado\n");
-            return 1;}}
+            return 1;}
+        }
     return 0;}
 
 //========================================//
@@ -132,7 +133,7 @@ char mandaMsg(char *buff){
     char *nome = buff;
     buff = strtok(buff);
     if(!estaRegistrado(nome, 0)){
-        printk(KERN_ALERT "[MSG] Processo '%s' não está registrado.\n", nome);
+        printk(KERN_ALERT "[MSG] Processo '%s' não está registrado. Msg[%s] descartada\n", nome, buff);
         //printk(KERN_ALERT "Este processo não está registrado\n");
         return 0;}
 
@@ -193,6 +194,7 @@ char unReg(char *nome){
     list_for_each_entry(n, &list, link){
         if(strcmp(n->nome, nome) == 0){
             if(n->pid == task_pid_nr(current)){
+                if(n->tam > 0) printk(KERN_INFO "[UNREG] Mensagem descartada.\n");
                 while(n->tam--) rmMsg(&n->mensagens, 0);
                 kfree(n->nome);
                 list_del(&(n->link));
