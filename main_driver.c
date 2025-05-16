@@ -268,12 +268,14 @@ static int dev_open(struct inode *inodep, struct file *filep){
 //========================================//
 
 static ssize_t dev_read(struct file *filep, char *buff, size_t size, loff_t *offset){
+    int i = 0;
     struct nodo *n = NULL;
     if(count <= 0){
         printk(KERN_ALERT "[READ] Lista de processos vazia.\n");
         return 0;}
 
     list_for_each_entry(n, &list, link){
+        if(i++ >= count) break;
         if(n->pid == task_pid_nr(current)){
             if(n->tam <= 0){
                 printk(KERN_ALERT "[READ] Lista de mensagens vazia.\n");
