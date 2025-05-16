@@ -19,13 +19,13 @@ static struct device *charDevice = NULL;
 
 struct list_head list;
 int count = 0; //qnt de processos registrados
-static int qntPro = 2;
-static int qntMsg = 2;
-static int tamMsg = 16;
+static int qntPro = 0;
+static int qntMsg = 0;
+static int tamMsg = 0;
 
-// module_param(qntPro, int, 0644);
-// module_param(qntMsg, int, 0644);
-// module_param(tamMsg, int, 0644);
+module_param(qntPro, int, 0644);
+module_param(qntMsg, int, 0644);
+module_param(tamMsg, int, 0644);
 
 
 static int dev_open(struct inode *, struct file *);
@@ -59,29 +59,6 @@ static struct file_operations fops =
 
 //========================================//
 
-void msg_show(struct list_head *mesagens){
-    struct mensagem *m = NULL;
-    list_for_each_entry(m, mesagens, link){
-        printk(KERN_INFO "Mensagem: %s", m->string);
-    }
-}
-
-//========================================//
-
-void list_show(void){
-	struct nodo *n = NULL;
-    if(count <= 0){
-        printk(KERN_INFO "Lista vazia\n");
-        return;}
-
-	list_for_each_entry(n, &list, link){
-		printk(KERN_INFO "PID: %d, Nome: %s\n", n->pid, n->nome);
-        printk(KERN_INFO "Tam: %d", n->tam);
-        msg_show(&n->mensagens);
-        printk(KERN_INFO "\n\n");}}
-
-//========================================//
-
 char *strtok(char *buff){
     int i = 0;
     while(buff[i++] != ' ');
@@ -90,14 +67,14 @@ char *strtok(char *buff){
 
 //========================================//
 
-char estaRegistrado(char *nome){
+char estaRegistrado(char *nome, char flag){
     struct nodo *n = NULL;
     list_for_each_entry(n, &list, link){
         if(strcmp(n->nome, nome) == 0){
-            printk(KERN_ALERT "Nome já utilizado\n");
+            if(flag) printk(KERN_ALERT "Nome já utilizado\n");
             return 1;}
         if(n->pid == task_pid_nr(current)){
-            printk(KERN_ALERT "Este processo ja está registrado\n");
+            if(flag) printk(KERN_ALERT "Este processo ja está registrado\n");
             return 1;}}
     return 0;}
 
@@ -113,7 +90,7 @@ char registraProcesso(char *nome){
         printk(KERN_ALERT "Nome inválido\n");
         return 0;}
 
-    if(estaRegistrado(nome)) //ja está registrado
+    if(estaRegistrado(nome, 1)) //ja está registrado
         return 0;
 
     count++;
@@ -124,6 +101,7 @@ char registraProcesso(char *nome){
     strcpy(n->nome, nome);
     INIT_LIST_HEAD(&n->mensagens);
     list_add(&(n->link), &list);
+    printk(KERN_INFO "Processo registrado\n");
     return 1;}
 
 //========================================//
@@ -151,12 +129,12 @@ char mandaMsg(char *buff){
     struct nodo *n = NULL;
     char *nome = buff;
     buff = strtok(buff);
-    if(!estaRegistrado(nome)){
+    if(!estaRegistrado(nome, 0)){
         printk(KERN_ALERT "Este processo não está registrado\n");
         return 0;}
 
     if(strlen(buff) >= tamMsg){
-        printk(KERN_ALERT "Mensagem muito grande\n");
+        printk(KERN_ALERT "Mensagem muito grande não foi enviada\n");
         return 0;}
 
     list_for_each_entry(n, &list, link){
@@ -167,6 +145,7 @@ char mandaMsg(char *buff){
                 n->tam--;}
             addMsg(&n->mensagens, buff);
             n->tam++;
+            printk(KERN_INFO "Mensagem enviada\n");
             return 1;}}
     return 0;}
 
@@ -179,7 +158,7 @@ char msgAll(char *buff){
         return 0;}
 
     if(strlen(buff) >= tamMsg){
-        printk(KERN_ALERT "Mensagem muito grande\n");
+        printk(KERN_ALERT "Mensagem muito grande, não foi enviada\n");
         return 0;}
     
     list_for_each_entry(n, &list, link){
@@ -189,6 +168,7 @@ char msgAll(char *buff){
             n->tam--;}
         addMsg(&n->mensagens, buff);
         n->tam++;}
+    printk(KERN_INFO "Mensagens enviadas\n");
     return 1;}
 
 //========================================//
@@ -207,6 +187,7 @@ char unReg(char *nome){
                 list_del(&(n->link));
                 kfree(n);
                 count--;
+                printk(KERN_INFO "Processo removido\n");
                 return 1;}
             printk(KERN_ALERT "Este processo não registrou %s, processo não removido\n", nome);
             return 0;}}
@@ -230,9 +211,9 @@ void clearList(void){
 //========================================//
 
 static int mq_init(void){
-    // if(qntPro <= 0 || qntMsg <= 0 || tamMsg <= 0){
-    //     printk(KERN_ALERT "Parametros inválidos\n");    
-    //     return 1;}
+    if(qntPro <= 0 || qntMsg <= 0 || tamMsg <= 0){
+        printk(KERN_ALERT "Parametros inválidos\n");    
+        return 1;}
 
     majorNumber = register_chrdev(0, DEVICE_NAME, &fops);
     if(majorNumber < 0) return majorNumber;
@@ -292,7 +273,7 @@ static ssize_t dev_read(struct file *filep, char *buff, size_t size, loff_t *off
 //========================================//
 
 static ssize_t dev_write(struct file *filep, const char *buff, size_t size, loff_t *offset){
-    char *aux = kmalloc(sizeof(char)*size, GFP_KERNEL);
+    char aux[256];
     char ret = 0;
     strcpy(aux, buff+2);
     if(buff[0] == '1') //registra um processo
@@ -307,7 +288,6 @@ static ssize_t dev_write(struct file *filep, const char *buff, size_t size, loff
     if(buff[0] == '4') //tira um processo da lista
         ret = unReg(aux);
 
-    kfree(aux);
     return ret;}
 
 //========================================//
