@@ -15,6 +15,7 @@ int main(){
     if(fd < 0)
         return 1;
 
+    printf("-----------------------------------------------"); 
     while (1) {
         printf("\n> ");
         fflush(stdout);
@@ -45,7 +46,7 @@ int main(){
             write(fd, aux, strlen(aux));  
         }
     }
-
+    printf("-----------------------------------------------\n"); 
     close(fd);
     return 0;
 }
